@@ -1,8 +1,8 @@
 package thorla
 
+import scopt.mutable.OptionParser
+
 trait Thorla {
-  // TODO: Figure out what we should use for command line options
-  // http://stackoverflow.com/questions/2315912/scala-best-way-to-parse-command-line-parameters-cli
   case class Option(sName: String, lName: String, description: String, default: Any)
   case class SubCommand(usage: String, description: String, numArgs: Int, var options: Array[Option])
 
@@ -11,6 +11,11 @@ trait Thorla {
   private var currCommand = ""
 
   val defaultNamespace = ""
+
+  /**
+   * Where parsed option values go once they are parsed.
+   */
+  var parsedOptions = Map[String, Any]()
 
   /**
    * Subclasses must specify the namespace for subcommands, can use predefined defaultNamespace.
@@ -41,7 +46,7 @@ trait Thorla {
    * @param description: description of option
    * @param default: default value, used to infer argument type. if not specified, assumes option is a flag.
    */
-  final def options(sName: String, lName: String = "", description: String = "", default: Any = Nil) {
+  final def options(sName: String, lName: String = "", description: String = "", default: Any = Unit) {
     if(currCommand == "") {
       Console.err.println("Thorla error: options appears before desc")
       return
@@ -55,7 +60,7 @@ trait Thorla {
    *
    * @param invoke: specify a subcommand to print usage for, by default prints all subcommands and descriptions
    */
-  final def usage(invoke: String = "") = {
+  final def usage(invoke: String = ""): String = {
     if(invoke == "" || !subCommands.contains(invoke)) { // List the subcommands
       val lines = subCommands.values.map(sub => {
         ("%s:%s".format(namespace, sub.usage), sub.description)
@@ -67,7 +72,7 @@ trait Thorla {
       }}.mkString("\n")
     }
     else { // Usage for specific subcommand
-      buildOptions(invoke)//.usage
+      buildOptionParser(invoke).usage
     }
   }
 
@@ -76,8 +81,25 @@ trait Thorla {
    *
    * @param invoke: name of the subcommand to build options for, must be in subCommands
    */
-  private def buildOptions(invoke: String) = {
-    // TODO
-    ""
+  private def buildOptionParser(invoke: String): OptionParser = {
+    val parser = new OptionParser(invoke)
+
+    subCommands(invoke).options.foreach(opt => {
+      opt.default match {
+        case x:Int => { parser.intOpt(opt.sName, opt.lName, opt.description, { updateValue(opt.sName, _) }) }
+        case x:Double => { parser.doubleOpt(opt.sName, opt.lName, opt.description, { updateValue(opt.sName, _) }) }
+        case x:Unit => {
+          updateValue(opt.sName, false) // initially false (flag not seen)
+          parser.opt(opt.sName, opt.lName, opt.description, { updateValue(opt.sName, true) })
+        }
+      }
+    })
+    parser.help("-h", "--help", "show this usage message and exit")
+
+    parser
+  }
+
+  private def updateValue(name: String, value: Any) {
+    parsedOptions += (name -> value)
   }
 }
