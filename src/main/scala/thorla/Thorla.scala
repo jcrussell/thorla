@@ -110,6 +110,8 @@ trait Thorla {
   }
 
   final def invoke(task: String, args: Array[String]): Int = {
-    0
+    val methName = task.split(":")(1)
+    val meth = this.getClass.getMethod(methName)
+    meth.invoke(this, args).asInstanceOf[Int]
   }
 }
