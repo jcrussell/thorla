@@ -76,6 +76,12 @@ trait Thorla {
     }
   }
 
+  final def respondsTo(task: String): Boolean = {
+    subCommands.keys.find(sub => {
+      "%s:%s".format(namespace, sub) == task
+    }).isDefined
+  }
+
   /**
    * Builds the actual option parser for options
    *
@@ -101,5 +107,9 @@ trait Thorla {
 
   private def updateValue(name: String, value: Any) {
     parsedOptions += (name -> value)
+  }
+
+  final def invoke(task: String, args: Array[String]): Int = {
+    0
   }
 }
