@@ -2,9 +2,11 @@ package thorla
 
 import scopt.mutable.OptionParser
 
+import java.lang.reflect.Method
+
 trait Thorla {
-  case class Option(sName: String, lName: String, description: String, default: Any)
-  case class SubCommand(usage: String, description: String, numArgs: Int, var options: Array[Option])
+  case class SubCommandOption(sName: String, lName: String, description: String, default: Any)
+  case class SubCommand(usage: String, description: String, numArgs: Int, method: Method, var options: Array[SubCommandOption])
 
   private var subCommands = Map[String, SubCommand]()
 
@@ -12,10 +14,8 @@ trait Thorla {
 
   val defaultNamespace = ""
 
-  /**
-   * Where parsed option values go once they are parsed.
-   */
-  var parsedOptions = Map[String, Any]()
+  private var argValues = Array[String]()
+  var options = Map[String, Any]()
 
   /**
    * Subclasses must specify the namespace for subcommands, can use predefined defaultNamespace.
@@ -33,9 +33,21 @@ trait Thorla {
     val invoke = parts.head
     val numArgs = parts.tail.size
 
-    subCommands ++= Map(invoke -> new SubCommand(usage, description, numArgs, Array[Option]()))
-
-    currCommand = invoke
+    getMethod(invoke) match {
+      case Some(meth) => {
+        if(numArgs != meth.getParameterTypes.size) {
+          Console.err.println("Thorla Error: usage num args does not match num parameters for %s".format(usage))
+        }
+        else {
+          subCommands ++= Map(invoke -> new SubCommand(usage, description, numArgs, meth, Array[SubCommandOption]()))
+          currCommand = invoke
+        }
+      }
+      case None => {
+        Console.err.println("Failed to find invoke target")
+        29
+      }
+    }
   }
 
   /**
@@ -52,7 +64,7 @@ trait Thorla {
       return
     }
 
-    subCommands(currCommand).options :+= new Option(sName, lName, description, default)
+    subCommands(currCommand).options :+= new SubCommandOption(sName, lName, description, default)
   }
 
   /**
@@ -89,36 +101,88 @@ trait Thorla {
    */
   private def buildOptionParser(invoke: String): OptionParser = {
     val parser = new OptionParser(invoke)
+    val sub = subCommands(invoke)
 
-    subCommands(invoke).options.foreach(opt => {
+    argValues = Array.fill(sub.numArgs){""}
+
+    sub.options.foreach(opt => {
       opt.default match {
-        case x:Int => { parser.intOpt(opt.sName, opt.lName, opt.description, { updateValue(opt.sName, _) }) }
-        case x:Double => { parser.doubleOpt(opt.sName, opt.lName, opt.description, { updateValue(opt.sName, _) }) }
-        case x:Unit => {
-          updateValue(opt.sName, false) // initially false (flag not seen)
-          parser.opt(opt.sName, opt.lName, opt.description, { updateValue(opt.sName, true) })
+        case x:Int => {
+          updateOption(opt.sName, x) // initially default value
+          parser.intOpt(opt.sName, opt.lName, opt.description, {
+            updateOption(opt.sName, _)
+          })
+        }
+        case x:Double => {
+          updateOption(opt.sName, x) // initially default value
+          parser.doubleOpt(opt.sName, opt.lName, opt.description, {
+            updateOption(opt.sName, _)
+          })
+        }
+        case x:Unit$ => {
+          updateOption(opt.sName, false) // initially false (flag not seen)
+          parser.opt(opt.sName, opt.lName, opt.description, {
+            updateOption(opt.sName, true)
+          })
+        }
+        case _ => {
+          Console.err.println("Thorla Error: unsupported option type: %s".format(opt.default.getClass.getName))
+          exit(1)
         }
       }
     })
+
+    methodParams(invoke).foreach{case (arg,param,i) => {
+      val desc = "%s is a %s".format(arg, param)
+      parser.arg(arg, desc, { updateArg(i, _) })
+    }}
+
     parser.help("-h", "--help", "show this usage message and exit")
 
     parser
   }
 
-  private def updateValue(name: String, value: Any) {
-    parsedOptions += (name -> value)
+  private def updateArg(index: Int, value: String) {
+    argValues(index) = value
+  }
+
+  private def updateOption(name: String, value: Any) {
+    options += (name -> value)
   }
 
   final def invoke(task: String, args: Array[String]): Int = {
-    val methName = task.split(":")(1)
-    val parser = buildOptionParser(methName)
+    val invoke = task.split(":")(1)
+    val parser = buildOptionParser(invoke)
     if(parser.parse(args)) {
-      val meth = this.getClass.getMethod(methName)
-      meth.invoke(this, args).asInstanceOf[Int]
-      0
+      val sub = subCommands(invoke)
+
+      val methArgs = argValues.zip(sub.method.getParameterTypes).map{case (arg, param) => {
+        param match {
+          case x:Class[Integer] => { Int.box(arg.toInt) }
+          case x:Class[Double] => { Double.box(arg.toDouble) }
+          case x:Class[String] => { arg }
+          case _ => {
+            Console.err.println("Thorla Error: Unsupported task method parameter type: %s".format(param))
+            exit(1)
+          }
+        }
+      }}.toArray
+
+      sub.method.invoke(this, methArgs : _* ).asInstanceOf[Int]
     }
     else {
+      Console.err.println("Failed to parse args")
       1
     }
+  }
+
+  private def getMethod(name: String): Option[Method] = {
+    this.getClass.getMethods.find(_.getName == name)
+  }
+
+  private def methodParams(invoke: String): Iterable[(String, Class[_], Int)] = {
+    val args = subCommands(invoke).usage.split(" ").drop(1)
+    val meth = subCommands(invoke).method
+    args.zip(meth.getParameterTypes).zipWithIndex.map{case ((x,y),z) => (x,y,z)}
   }
 }
