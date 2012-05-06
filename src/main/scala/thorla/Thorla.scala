@@ -111,7 +111,14 @@ trait Thorla {
 
   final def invoke(task: String, args: Array[String]): Int = {
     val methName = task.split(":")(1)
-    val meth = this.getClass.getMethod(methName)
-    meth.invoke(this, args).asInstanceOf[Int]
+    val parser = buildOptionParser(methName)
+    if(parser.parse(args)) {
+      val meth = this.getClass.getMethod(methName)
+      meth.invoke(this, args).asInstanceOf[Int]
+      0
+    }
+    else {
+      1
+    }
   }
 }
