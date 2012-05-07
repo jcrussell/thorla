@@ -202,6 +202,10 @@ trait Thorla {
     options(name).asInstanceOf[Double]
   }
 
+  def optionAsBoolean(name: String): Boolean = {
+    options(name).asInstanceOf[Boolean]
+  }
+
   private def updateArg(index: Int, value: String) {
     argValues(index) = value
   }
