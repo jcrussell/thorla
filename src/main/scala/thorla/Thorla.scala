@@ -138,7 +138,7 @@ trait Thorla {
       parser.arg(arg, desc, { setVal(i, _) })
     }}
 
-    parser.help("-h", "--help", "show this usage message and exit")
+    parser.help("h", "help", "show this usage message and exit")
 
     parser
   }
