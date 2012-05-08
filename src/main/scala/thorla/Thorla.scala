@@ -134,7 +134,7 @@ trait Thorla {
     })
 
     methodParams(invoke).foreach{case (arg,param,i) => {
-      val desc = "%s is a %s".format(arg, param)
+      val desc = "%s is a %s".format(arg, param.getName)
       parser.arg(arg, desc, { setVal(i, _) })
     }}
 
@@ -157,15 +157,12 @@ trait Thorla {
       val sub = subCommands(invoke)
 
       val methArgs = argValues.zip(sub.method.getParameterTypes).map{case (arg, param) => {
-        println("Converting %s to %s".format(arg, param))
-        param match {
-          case x:Class[Integer] => { Int.box(arg.toInt) }
-          case x:Class[Double] => { Double.box(arg.toDouble) }
-          case x:Class[String] => { arg }
-          case _ => {
-            err("unsupported task method parameter type: %s".format(param))
-            exit(1)
-          }
+        if(classOf[Integer] isAssignableFrom param) { Int.box(arg.toInt) }
+        else if(classOf[Double] isAssignableFrom param) { Double.box(arg.toDouble) }
+        else if(classOf[String] isAssignableFrom param) { arg.toString }
+        else {
+          err("unsupported task method parameter type: %s".format(param.getName))
+          exit(1)
         }
       }}.toArray
 
