@@ -29,13 +29,27 @@ object ThorlaMain {
   }
 
   private def usage(thorlas: List[Thorla]) = {
-    thorlas.foreach(thorla => {
-      println(thorla.namespace)
-      println("-"*thorla.namespace.size)
+    val defaults = thorlas.filter(_.namespace == Thorla.defaultNamespace)
+    val others = thorlas.filterNot(defaults.contains)
+
+    if(defaults.size > 0) {
+      printHeader("default")
+      defaults.flatMap(_.usage().split("\n")).sortWith{_ < _}.foreach(println)
+      println
+    }
+
+    others.sortWith(_.namespace < _.namespace).foreach(thorla => {
+      printHeader(thorla.namespace)
       println(thorla.usage())
+      println
     })
 
-    1
+    0
+  }
+
+  private def printHeader(name: String) {
+    println(name)
+    println("-"*name.size)
   }
 
   private def findThorlas(): List[Thorla] = {

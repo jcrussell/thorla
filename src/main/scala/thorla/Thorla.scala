@@ -4,15 +4,17 @@ import scopt.mutable.OptionParser
 
 import java.lang.reflect.Method
 
+object Thorla {
+  val defaultNamespace = ""
+}
+
 trait Thorla {
-  case class SubCommandOption(sName: String, lName: String, description: String, default: Any)
-  case class SubCommand(usage: String, description: String, numArgs: Int, method: Method, var options: Array[SubCommandOption])
+  case class SubCommandOption(sName: String, lName: String, desc: String, default: Any)
+  case class SubCommand(usage: String, desc: String, numArgs: Int, method: Method, var options: Array[SubCommandOption])
 
   private var subCommands = Map[String, SubCommand]()
 
   private var currCommand = ""
-
-  val defaultNamespace = ""
 
   private var argValues = Array[String]()
   var options = Map[String, Any]()
@@ -26,26 +28,30 @@ trait Thorla {
    * Creates a new subcommand
    *
    * @param usage: subcommand usage string, first word is the invoke name and should be the same as the method name
-   * @param description: description of the subcommand
+   * @param desc: description of the subcommand
    */
-  final def desc(usage: String, description: String = "") {
+  final def desc(usage: String, desc: String = "") {
     val parts = usage.split(" ")
     val invoke = parts.head
     val numArgs = parts.tail.size
 
-    getMethod(invoke) match {
-      case Some(meth) => {
-        if(numArgs != meth.getParameterTypes.size) {
-          Console.err.println("Thorla Error: usage num args does not match num parameters for %s".format(usage))
+    if(subCommands.keys.find(_ == invoke).isDefined) {
+      err("%s is already described and overloading is not supported".format(invoke))
+    }
+    else {
+      getMethod(invoke) match {
+        case Some(meth) => {
+          if(numArgs != meth.getParameterTypes.size) {
+            err("usage num args does not match num parameters for %s".format(usage))
+          }
+          else {
+            subCommands ++= Map(invoke -> new SubCommand(usage, desc, numArgs, meth, Array[SubCommandOption]()))
+            currCommand = invoke
+          }
         }
-        else {
-          subCommands ++= Map(invoke -> new SubCommand(usage, description, numArgs, meth, Array[SubCommandOption]()))
-          currCommand = invoke
+        case None => {
+          err("failed to find invoke target (%s)".format(invoke))
         }
-      }
-      case None => {
-        Console.err.println("Failed to find invoke target")
-        29
       }
     }
   }
@@ -55,16 +61,16 @@ trait Thorla {
    *
    * @param sName: short-hand for option
    * @param lName: full name for option
-   * @param description: description of option
+   * @param desc: description of option
    * @param default: default value, used to infer argument type. if not specified, assumes option is a flag.
    */
-  final def options(sName: String, lName: String = "", description: String = "", default: Any = Unit) {
+  final def options(sName: String, lName: String = "", desc: String = "", default: Any = false) {
     if(currCommand == "") {
-      Console.err.println("Thorla error: options appears before desc")
+      err("options appears before desc")
       return
     }
 
-    subCommands(currCommand).options :+= new SubCommandOption(sName, lName, description, default)
+    subCommands(currCommand).options :+= new SubCommandOption(sName, lName, desc, default)
   }
 
   /**
@@ -76,12 +82,12 @@ trait Thorla {
   final def usage(invoke: String = ""): String = {
     if(invoke == "" || !subCommands.contains(invoke)) { // List the subcommands
       val lines = subCommands.values.map(sub => {
-        ("%s:%s".format(namespace, sub.usage), sub.description)
+        ("%s:%s".format(namespace, sub.usage), sub.desc)
       })
       // Calculate the longest usage
       val len = lines.map(_._1.size).max
-      lines.map{case (usage, description) => {
-        ("%-"+len+"s  # %s").format(usage, description)
+      lines.map{case (usage, desc) => {
+        ("%-"+len+"s  # %s").format(usage, desc)
       }}.mkString("\n")
     }
     else { // Usage for specific subcommand
@@ -114,27 +120,14 @@ trait Thorla {
     argValues = Array.fill(sub.numArgs){""}
 
     sub.options.foreach(opt => {
+      setVal(opt.sName, opt.default) // initially default value
       opt.default match {
-        case x:Int => {
-          updateOption(opt.sName, x) // initially default value
-          parser.intOpt(opt.sName, opt.lName, opt.description, {
-            updateOption(opt.sName, _)
-          })
-        }
-        case x:Double => {
-          updateOption(opt.sName, x) // initially default value
-          parser.doubleOpt(opt.sName, opt.lName, opt.description, {
-            updateOption(opt.sName, _)
-          })
-        }
-        case x:Unit$ => {
-          updateOption(opt.sName, false) // initially false (flag not seen)
-          parser.opt(opt.sName, opt.lName, opt.description, {
-            updateOption(opt.sName, true)
-          })
-        }
+        case x:String => { parser.opt(opt.sName, opt.lName, opt.desc, { setVal(opt.sName, _) }) }
+        case x:Int => { parser.intOpt(opt.sName, opt.lName, opt.desc, { setVal(opt.sName, _) }) }
+        case x:Double => { parser.doubleOpt(opt.sName, opt.lName, opt.desc, { setVal(opt.sName, _) }) }
+        case x:Boolean => { parser.opt(opt.sName, opt.lName, opt.desc, { setVal(opt.sName, true) }) }
         case _ => {
-          Console.err.println("Thorla Error: unsupported option type: %s".format(opt.default.getClass.getName))
+          err("unsupported option type: %s".format(opt.default.getClass.getName))
           exit(1)
         }
       }
@@ -142,7 +135,7 @@ trait Thorla {
 
     methodParams(invoke).foreach{case (arg,param,i) => {
       val desc = "%s is a %s".format(arg, param)
-      parser.arg(arg, desc, { updateArg(i, _) })
+      parser.arg(arg, desc, { setVal(i, _) })
     }}
 
     parser.help("-h", "--help", "show this usage message and exit")
@@ -164,12 +157,13 @@ trait Thorla {
       val sub = subCommands(invoke)
 
       val methArgs = argValues.zip(sub.method.getParameterTypes).map{case (arg, param) => {
+        println("Converting %s to %s".format(arg, param))
         param match {
           case x:Class[Integer] => { Int.box(arg.toInt) }
           case x:Class[Double] => { Double.box(arg.toDouble) }
           case x:Class[String] => { arg }
           case _ => {
-            Console.err.println("Thorla Error: Unsupported task method parameter type: %s".format(param))
+            err("unsupported task method parameter type: %s".format(param))
             exit(1)
           }
         }
@@ -178,7 +172,7 @@ trait Thorla {
       sub.method.invoke(this, methArgs : _* ).asInstanceOf[Int]
     }
     else {
-      Console.err.println("Failed to parse args")
+      err("failed to parse args")
       1
     }
   }
@@ -206,11 +200,15 @@ trait Thorla {
     options(name).asInstanceOf[Boolean]
   }
 
-  private def updateArg(index: Int, value: String) {
+  private def err(msg: String) {
+    Console.err.println("Thorla Error: '%s'".format(msg))
+  }
+
+  private def setVal(index: Int, value: String) {
     argValues(index) = value
   }
 
-  private def updateOption(name: String, value: Any) {
+  private def setVal(name: String, value: Any) {
     options += (name -> value)
   }
 

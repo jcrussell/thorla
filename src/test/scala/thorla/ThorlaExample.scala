@@ -25,7 +25,7 @@ object ThorlaExample extends Thorla {
   }
 
   desc("with_options", "test method with_options")
-  options("a", description = "first")
+  options("a", desc = "first")
   options("b", "second", "second")
   options("c", "third", "third", 0)
   options("d", "third", "third", 1.0)
