@@ -58,9 +58,9 @@ object ThorlaMain {
     import java.io.File
 
     val classpath = (findContainingJar(classOf[Thorla]) match {
-      case Some(jar) => { "%s:".format(jar) }
+      case Some(jar) => { "%s".format(jar) }
       case _ => { "" }
-    }) + System.getProperty("java.class.path")
+    })// + System.getProperty("java.class.path")
 
     val finder = ClassFinder(classpath.split(":").map(new File(_)))
     val subclasses = ClassFinder.concreteSubclasses("thorla.Thorla", finder.getClasses)
