@@ -57,7 +57,11 @@ object ThorlaMain {
     import org.clapper.classutil.ClassInfo
     import java.io.File
 
-    val classpath = System.getProperty("java.class.path")
+    val classpath = (findContainingJar(classOf[Thorla]) match {
+      case Some(jar) => { "%s:".format(jar) }
+      case _ => { "" }
+    }) + System.getProperty("java.class.path")
+
     val finder = ClassFinder(classpath.split(":").map(new File(_)))
     val subclasses = ClassFinder.concreteSubclasses("thorla.Thorla", finder.getClasses)
     subclasses.map(sub => {
@@ -67,5 +71,23 @@ object ThorlaMain {
         }
       }
     }).toList
+  }
+
+  private def findContainingJar(clazz: Class[_]): Option[String] = {
+    import scala.collection.JavaConversions.enumerationAsScalaIterator
+    import java.net.URLDecoder
+    import java.net.URL
+
+    val loader = clazz.getClassLoader
+    val file = clazz.getName().replaceAll("\\.", "/") + ".class";
+
+    loader.getResources(file).collectFirst{url: URL => {
+      url.getProtocol match {
+        case "jar" => {
+          val jar = URLDecoder.decode(url.getPath.replace("file:", ""), "UTF-8")
+          jar.replaceAll("!.*$", "") // remove special characters
+        }
+      }
+    }}
   }
 }
