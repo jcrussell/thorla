@@ -125,10 +125,10 @@ trait Thorla {
         case x:String => { parser.opt(opt.sName, opt.lName, opt.desc, { setVal(opt.sName, _) }) }
         case x:Int => { parser.intOpt(opt.sName, opt.lName, opt.desc, { setVal(opt.sName, _) }) }
         case x:Double => { parser.doubleOpt(opt.sName, opt.lName, opt.desc, { setVal(opt.sName, _) }) }
-        case x:Boolean => { parser.opt(opt.sName, opt.lName, opt.desc, { setVal(opt.sName, true) }) }
+        case x:Boolean => { parser.booleanOpt(opt.sName, opt.lName, opt.desc, { setVal(opt.sName, _) }) }
         case _ => {
           err("unsupported option type: %s".format(opt.default.getClass.getName))
-          exit(1)
+          sys.exit(1)
         }
       }
     })
@@ -162,7 +162,7 @@ trait Thorla {
         else if(classOf[String] isAssignableFrom param) { arg.toString }
         else {
           err("unsupported task method parameter type: %s".format(param.getName))
-          exit(1)
+          sys.exit(1)
         }
       }}.toArray
 
