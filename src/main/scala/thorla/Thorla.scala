@@ -2,7 +2,7 @@ package thorla
 
 import scopt.mutable.OptionParser
 
-import java.lang.reflect.Method
+import java.lang.reflect.{Method, InvocationTargetException}
 
 object Thorla {
   val defaultNamespace = ""
@@ -70,7 +70,15 @@ trait Thorla {
       return
     }
 
-    subCommands(currCommand).options :+= new SubCommandOption(sName, lName, desc, default)
+    subCommands(currCommand).options.find(x => x.sName == sName || x.lName == lName) match {
+      case Some(option) => {
+        err("option %s (%s) has naming conflict with %s (%s)".format(sName, lName, option.sName, option.lName))
+      }
+      case None => {
+        subCommands(currCommand).options :+= new SubCommandOption(sName, lName, desc, default)
+      }
+    }
+
   }
 
   /**
@@ -157,7 +165,7 @@ trait Thorla {
       val sub = subCommands(invoke)
 
       val methArgs = argValues.zip(sub.method.getParameterTypes).map{case (arg, param) => {
-        if(classOf[Integer] isAssignableFrom param) { Int.box(arg.toInt) }
+        if(classOf[Int] isAssignableFrom param) { Int.box(arg.toInt) }
         else if(classOf[Double] isAssignableFrom param) { Double.box(arg.toDouble) }
         else if(classOf[String] isAssignableFrom param) { arg.toString }
         else {
@@ -166,7 +174,14 @@ trait Thorla {
         }
       }}.toArray
 
-      sub.method.invoke(this, methArgs : _* ).asInstanceOf[Int]
+      try {
+        sub.method.invoke(this, methArgs : _* ).asInstanceOf[Int]
+      }
+      catch {
+        case e: InvocationTargetException => {
+          throw e.getCause
+        }
+      }
     }
     else {
       err("failed to parse args")
