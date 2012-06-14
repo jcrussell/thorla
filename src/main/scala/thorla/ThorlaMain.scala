@@ -53,14 +53,23 @@ object ThorlaMain {
   }
 
   private def findThorlas(): List[Thorla] = {
+    findContainingJar(classOf[Thorla]) match {
+      case Some(jar) => { // Found a jar, could be thorla jar or application jar
+        val thorlas = findThorlas("%s".format(jar))
+        if(thorlas.size == 0) { // No tasks found, try looking through whole classpath
+          findThorlas(System.getProperty("java.class.path"))
+        } else { thorlas }
+      }
+      case _ => { // Didn't find any in containing jar, try looking through whole classpath
+        findThorlas(System.getProperty("java.class.path"))
+      }
+    }
+  }
+
+  private def findThorlas(classpath: String): List[Thorla] = {
     import org.clapper.classutil.ClassFinder
     import org.clapper.classutil.ClassInfo
     import java.io.File
-
-    val classpath = (findContainingJar(classOf[Thorla]) match {
-      case Some(jar) => { "%s".format(jar) }
-      case _ => { "" }
-    })// + System.getProperty("java.class.path")
 
     val finder = ClassFinder(classpath.split(":").map(new File(_)))
     val subclasses = ClassFinder.concreteSubclasses("thorla.Thorla", finder.getClasses)
@@ -85,7 +94,7 @@ object ThorlaMain {
       url.getProtocol match {
         case "jar" => {
           val jar = URLDecoder.decode(url.getPath.replace("file:", ""), "UTF-8")
-          jar.replaceAll("!.*$", "") // remove special characters
+          jar.replaceAll("!.*$", "") // remove classname from end of path
         }
       }
     }}
