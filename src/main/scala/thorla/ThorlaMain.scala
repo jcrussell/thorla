@@ -6,45 +6,62 @@ object ThorlaMain {
 
   def main(args: Array[String]) {
     if(args.size == 0) {
-      usage(thorlas)
+      usage(thorlas, "")
     }
     else {
-      thorla(args)
+      sys.exit(thorla(args))
     }
   }
 
   private def thorla(args: Array[String]) = {
     args.head match {
-      case "list" => { usage(thorlas) }
+      case "list" => {
+        val tail = args.tail
+        usage(thorlas, if(tail.size > 0) { tail.head } else { "" })
+        1
+      }
       case x => {
         thorlas.find(_.respondsTo(x)) match {
           case Some(thorla) => { thorla.invoke(x, args.tail) }
           case None => {
-            println("Task '%s' not found".format(x))
-            usage(thorlas)
+            println("Task '%s' not found, looking for partial matches.".format(x))
+            usage(thorlas, x)
+            1
           }
         }
       }
     }
   }
 
-  private def usage(thorlas: List[Thorla]) = {
-    val defaults = thorlas.filter(_.namespace == Thorla.defaultNamespace)
-    val others = thorlas.filterNot(defaults.contains)
+  private def usage(thorlas: List[Thorla], partial: String) {
+    val matched = thorlas.flatMap(_.usage).filter(_._1.startsWith(partial))
 
-    if(defaults.size > 0) {
-      printHeader("default")
-      defaults.flatMap(_.usage().split("\n")).sortWith{_ < _}.foreach(println)
-      println
+    if(matched.size > 0) {
+      usage(matched)
+    }
+    else {
+      println("No partial matches found. Usage:")
+      usage(thorlas.flatMap(_.usage))
     }
 
-    others.sortWith(_.namespace < _.namespace).foreach(thorla => {
-      printHeader(thorla.namespace)
-      println(thorla.usage())
+    0
+  }
+
+  private def usage(usages: List[(String, String)]) {
+    val namespaces = usages.map(_._1.split(":").head).toList.sorted.distinct
+
+    namespaces.foreach(namespace => {
+      val to_print = usages.filter(_._1.startsWith(namespace))
+      printHeader(if(namespace == "") { "default" } else { namespace })
+
+      // Calculate the longest usage
+      val len = usages.map(_._1.size).max
+      usages.foreach{case (usage, desc) => {
+        println(("%-"+len+"s  # %s").format(usage, desc))
+      }}
+
       println
     })
-
-    0
   }
 
   private def printHeader(name: String) {

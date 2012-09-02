@@ -82,25 +82,23 @@ trait Thorla {
   }
 
   /**
-   * Returns the usage for a specific subcommand or lists the available subcommands
+   * Lists the usage of the available subcommands
    *
-   * @param invoke: specify a subcommand to print usage for, by default prints all subcommands and descriptions
+   * @return list of (invoke string, description) tuples for all known subcommands
+   */
+  final def usage(): List[(String, String)] = {
+    subCommands.values.map(sub => {
+      ("%s:%s".format(namespace, sub.usage), sub.desc)
+    }).toList
+  }
+
+  /**
+   * Returns the usage for a specific subcommand
+   *
    * @return usage string
    */
-  final def usage(invoke: String = ""): String = {
-    if(invoke == "" || !subCommands.contains(invoke)) { // List the subcommands
-      val lines = subCommands.values.map(sub => {
-        ("%s:%s".format(namespace, sub.usage), sub.desc)
-      })
-      // Calculate the longest usage
-      val len = lines.map(_._1.size).max
-      lines.map{case (usage, desc) => {
-        ("%-"+len+"s  # %s").format(usage, desc)
-      }}.mkString("\n")
-    }
-    else { // Usage for specific subcommand
-      buildOptionParser(invoke).usage
-    }
+  final def usage(invoke: String): String = {
+    buildOptionParser(invoke).usage
   }
 
   /**
@@ -170,7 +168,7 @@ trait Thorla {
         else if(classOf[String] isAssignableFrom param) { arg.toString }
         else {
           err("unsupported task method parameter type: %s".format(param.getName))
-          sys.exit(1)
+          return 1
         }
       }}.toArray
 
