@@ -1,6 +1,8 @@
 name := "thorla"
 
-version := "0.3"
+version := "0.3-SNAPSHOT"
+
+organization := "com.github.thorla"
 
 scalaVersion := "2.9.1"
 

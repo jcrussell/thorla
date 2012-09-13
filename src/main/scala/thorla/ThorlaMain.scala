@@ -51,12 +51,13 @@ object ThorlaMain {
     val namespaces = usages.map(_._1.split(":").head).toList.sorted.distinct
 
     namespaces.foreach(namespace => {
-      val to_print = usages.filter(_._1.startsWith(namespace))
+      val invoke_prefix = "%s:".format(namespace)
+      val to_print = usages.filter(_._1.startsWith(invoke_prefix))
       printHeader(if(namespace == "") { "default" } else { namespace })
 
       // Calculate the longest usage
-      val len = usages.map(_._1.size).max
-      usages.foreach{case (usage, desc) => {
+      val len = to_print.map(_._1.size).max
+      to_print.foreach{case (usage, desc) => {
         println(("%-"+len+"s  # %s").format(usage, desc))
       }}
 
