@@ -1,73 +1,11 @@
 package thorla
 
-object ThorlaMain {
+object ThorlaClapperMain {
 
   lazy private val thorlas = findThorlas()
 
   def main(args: Array[String]) {
-    if(args.size == 0) {
-      usage(thorlas, "")
-    }
-    else {
-      sys.exit(thorla(args))
-    }
-  }
-
-  private def thorla(args: Array[String]) = {
-    args.head match {
-      case "list" => {
-        val tail = args.tail
-        usage(thorlas, if(tail.size > 0) { tail.head } else { "" })
-        1
-      }
-      case x => {
-        thorlas.find(_.respondsTo(x)) match {
-          case Some(thorla) => { thorla.invoke(x, args.tail) }
-          case None => {
-            println("Task '%s' not found, looking for partial matches.".format(x))
-            usage(thorlas, x)
-            1
-          }
-        }
-      }
-    }
-  }
-
-  private def usage(thorlas: List[Thorla], partial: String) {
-    val matched = thorlas.flatMap(_.usage).filter(_._1.startsWith(partial))
-
-    if(matched.size > 0) {
-      usage(matched)
-    }
-    else {
-      println("No partial matches found. Usage:")
-      usage(thorlas.flatMap(_.usage))
-    }
-
-    0
-  }
-
-  private def usage(usages: List[(String, String)]) {
-    val namespaces = usages.map(_._1.split(":").head).toList.sorted.distinct
-
-    namespaces.foreach(namespace => {
-      val invoke_prefix = "%s:".format(namespace)
-      val to_print = usages.filter(_._1.startsWith(invoke_prefix))
-      printHeader(if(namespace == "") { "default" } else { namespace })
-
-      // Calculate the longest usage
-      val len = to_print.map(_._1.size).max
-      to_print.foreach{case (usage, desc) => {
-        println(("%-"+len+"s  # %s").format(usage, desc))
-      }}
-
-      println
-    })
-  }
-
-  private def printHeader(name: String) {
-    println(name)
-    println("-"*name.size)
+    BaseThorlaMain.main(thorlas, args)
   }
 
   private def findThorlas(): List[Thorla] = {
