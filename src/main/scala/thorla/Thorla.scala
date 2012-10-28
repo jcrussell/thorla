@@ -10,7 +10,7 @@ object Thorla {
 
 trait Thorla {
   case class SubCommandOption(sName: String, lName: String, desc: String, default: Any)
-  case class SubCommand(usage: String, desc: String, numArgs: Int, method: Method, var options: Array[SubCommandOption])
+  case class SubCommand(usage: String, desc: String, numArgs: Int, method: Method, var disabled: Boolean, var options: Array[SubCommandOption])
 
   private var subCommands = Map[String, SubCommand]()
 
@@ -45,7 +45,7 @@ trait Thorla {
             err("usage num args does not match num parameters for %s".format(usage))
           }
           else {
-            subCommands ++= Map(invoke -> new SubCommand(usage, desc, numArgs, meth, Array[SubCommandOption]()))
+            subCommands ++= Map(invoke -> new SubCommand(usage, desc, numArgs, meth, false, Array[SubCommandOption]()))
             currCommand = invoke
           }
         }
@@ -82,12 +82,28 @@ trait Thorla {
   }
 
   /**
+   * Disables a subcommand, removing it from usage and invocation targets.
+   * Note: This must appear after the desc since thorla doesn't know about a subcommand
+   *   until it has been described
+   *
+   * @param subcommand: name of the subcommand to disable.
+   */
+  final def disabled(subcommand: String) {
+    if(!subCommands.keys.find(_ == subcommand).isDefined) {
+      err("%s has not been described and therefore can't be disabled".format(subcommand))
+    }
+    else {
+      subCommands(subcommand).disabled = true
+    }
+  }
+
+  /**
    * Lists the usage of the available subcommands
    *
    * @return list of (invoke string, description) tuples for all known subcommands
    */
   final def usage(): List[(String, String)] = {
-    subCommands.values.map(sub => {
+    subCommands.values.filterNot(_.disabled).map(sub => {
       ("%s:%s".format(namespace, sub.usage), sub.desc)
     }).toList
   }
@@ -109,7 +125,8 @@ trait Thorla {
    */
   final def respondsTo(task: String): Boolean = {
     subCommands.keys.find(sub => {
-      "%s:%s".format(namespace, sub) == task
+      // Make sure matches and that subcommand is not disabled
+      "%s:%s".format(namespace, sub) == task && ! subCommands(sub).disabled
     }).isDefined
   }
 

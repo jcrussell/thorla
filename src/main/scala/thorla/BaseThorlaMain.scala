@@ -54,7 +54,7 @@ object BaseThorlaMain {
 
     namespaces.foreach(namespace => {
       val invoke_prefix = "%s:".format(namespace)
-      val to_print = usages.filter(_._1.startsWith(invoke_prefix))
+      val to_print = usages.filter(_._1.startsWith(invoke_prefix)).sortWith{_._1 < _._1}
       printHeader(if(namespace == "") { "default" } else { namespace })
 
       // Calculate the longest usage
