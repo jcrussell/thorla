@@ -6,10 +6,8 @@ https://github.com/wycats/thor
 
 # Instructions
 
-Thorla supports two modes of operation -- static and dynamic. Static mode avoids the overhead of discovering what Thorla tasks are available.
+Thorla builds a list of tasks with the help of a simple Main object maintainted by the application developer. Here's an example:
 
-## Static Mode
-In static mode, a list of thorlas is manually maintained by the application developer. Here's a simple example:
 ```scala
 package example
 
@@ -25,9 +23,7 @@ object Main {
 }
 ```
 
-## Dynamic Mode
-
-In dynamic mode, ThorlaMain uses Clapper to look for subclasses of Thorla. Unfortunately, this does not play well with sbt at the moment. Therefore, as a fix, add this new task to your project's build.sbt (modified from Mark Harrah's answer on StackOverflow, http://stackoverflow.com/questions/7449312/create-script-with-classpath-from-sbt):
+# Helpful sbt task for creating a run script:
 
 ```scala
 TaskKey[File]("mkrun") <<= (baseDirectory, javaOptions, fullClasspath in Runtime, mainClass in (Compile, run)) map { (base, opts, cp, main) =>
@@ -45,11 +41,8 @@ This will allow you to create a shell script ("run.sh") which can run your proje
 
 # Roadmap
 
-## 0.3
-
-* Validates options and arguments
-
 ## Future Ideas
 
+* Validates options and arguments
 * Subcommand dependencies (allows chaining of subcommands)
 * Parallelized subcommands
