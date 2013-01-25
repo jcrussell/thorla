@@ -1,21 +1,17 @@
 name := "thorla"
 
-version := "0.3-SNAPSHOT"
+version := "0.4-SNAPSHOT"
 
 organization := "com.github.thorla"
 
-scalaVersion := "2.9.1"
+scalaVersion := "2.10.0"
 
-libraryDependencies ++= Seq(
-  "com.github.scopt" %% "scopt" % "2.0.0",
-  "org.clapper" %% "classutil" % "0.4.6",
-  "org.scalatest" %% "scalatest" % "1.7.2" % "test",
-  "org.slf4j" % "slf4j-nop" % "1.6.2"
+resolvers ++= Seq(
+  "sonatype-public" at "https://oss.sonatype.org/content"
 )
 
-seq(ProguardPlugin.proguardSettings :_*)
-
-proguardOptions ++= Seq(
-  "-keep class thorla.** { *; }",
-  "-keep class org.slf4j.** { *; }"
+libraryDependencies ++= Seq(
+  "com.github.scopt" % "scopt_2.10" % "2.1.0",
+  "org.scalatest" % "scalatest_2.10" % "1.9.1" % "test",
+  "org.slf4j" % "slf4j-nop" % "1.6.2"
 )
