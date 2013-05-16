@@ -28,7 +28,7 @@ object ThorlaExample extends Thorla {
   options("a", desc = "first")
   options("b", "second", "second")
   options("c", "third", "third", 0)
-  options("d", "third", "third", 1.0)
+  options("d", "fourth", "fourth", 1.0)
   def with_options() = {
     println("hello a: %b".format(options("a")))
     println("hello b: %b".format(options("b")))
