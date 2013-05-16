@@ -263,6 +263,10 @@ object Util {
     }
     catch {
       case e: EOFException => {
+        println // User enter a Ctrl-d, print a new line
+        false
+      }
+      case e: StringIndexOutOfBoundsException => {
         false
       }
     }
