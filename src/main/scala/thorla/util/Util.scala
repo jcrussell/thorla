@@ -97,6 +97,21 @@ object Util {
     new File(System.getProperty("user.dir"))
   }
 
+  def deleteRecursively(file: File, needsConfirm: Boolean = true) {
+    if(!needsConfirm || confirm("recursively remove %s".format(file.getAbsolutePath))) {
+      if(file.isDirectory) {
+        Option(file.listFiles) match {
+          case Some(files) => {
+            files.foreach(deleteRecursively(_, false))
+          }
+          case None => { }
+        }
+      }
+
+      file.delete()
+    }
+  }
+
   /**
    * Read the whole contents of a file into a String
    */
